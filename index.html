@@ -106,6 +106,7 @@
     .time-display {
       font-size:1.1rem;
     }
+
     .planner-container {
       max-width:1000px;
       margin:auto;
@@ -188,18 +189,10 @@
       padding:.1rem .3rem;
       margin:.2rem 0;
       display:flex;
-      justify-content:space-between;
+      justify-content:center;
       align-items:center;
       border-radius:5px;
-      font-size:.7rem;
-    }
-
-    .plan-badge button {
-      background:transparent;
-      border:none;
-      cursor:pointer;
-      color:white;
-      font-size:1rem;
+      font-size:1.2rem;
     }
 
     .popup-form {
@@ -257,11 +250,11 @@
 <body>
   <script>
     const isBirthday = new Date().getMonth() === 9 && new Date().getDate() === 7;
-    const emojis = isBirthday ? ['🎉','🎂','🎈'] : ['🦊','🐸','🌸'];
+    const rainEmojis = isBirthday ? ['🎉','🎂','🎈'] : ['🦊','🐸','🌸'];
     for(let i=0; i<40; i++){
       const d = document.createElement('div');
       d.className = 'rain-emoji';
-      d.textContent = emojis[i % emojis.length];
+      d.textContent = rainEmojis[i % rainEmojis.length];
       d.style.left = Math.random()*100 + 'vw';
       d.style.animationDuration = (5 + Math.random()*5) + 's';
       d.style.fontSize = (1 + Math.random()*1.4) + 'rem';
@@ -280,9 +273,7 @@
   </div>
 
   <div class="top-bar">
-    <h1 class="planner-head" id="plannerTitle">
-      ❀♥Eli's Planner♥❀
-    </h1>
+    <h1 class="planner-head" id="plannerTitle">❀♥Eli's Planner♥❀</h1>
     <div class="time-display" id="timeDisplay">it’s --:--:--</div>
   </div>
 
@@ -312,232 +303,186 @@
   </div>
 
   <audio id="notifSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-<script>
-let currentMonth = new Date().getMonth();
-let currentYear = new Date().getFullYear();
-let selectedDay = null;
 
-const monthNames = ["January","February","March","April","May","June",
-                    "July","August","September","October","November","December"];
+  <script>
+    const emojiCycle = ["🐸", "🌸", "🦊"];
+    let emojiCounter = 0;
 
-let plans = JSON.parse(localStorage.getItem('plans') || '{}');
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    let selectedDay = null;
+    const monthNames = ["January","February","March","April","May","June",
+                        "July","August","September","October","November","December"];
+    let plans = JSON.parse(localStorage.getItem('plans') || '{}');
+    const holidays = { "12-25": "🎄 Christmas" };
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
 
-const holidays = { "12-25": "🎄 Christmas" };
-const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    const plannerTitle = document.getElementById("plannerTitle");
+    const monthLabel = document.getElementById("monthLabel"),
+          monthView = document.getElementById("monthView"),
+          popupForm = document.getElementById("popupForm"),
+          planName = document.getElementById("planName"),
+          formDateLabel = document.getElementById("formDateLabel"),
+          hourSel = document.getElementById("hour"),
+          minuteSel = document.getElementById("minute"),
+          ampmSel = document.getElementById("ampm"),
+          notifToggle = document.getElementById("notifToggle"),
+          timeDisplay = document.getElementById("timeDisplay"),
+          sidebar = document.getElementById("sidebar"),
+          monthPills = document.getElementById("monthPills"),
+          notifSound = document.getElementById("notifSound");
 
-const plannerTitle = document.getElementById("plannerTitle");
-const monthLabel = document.getElementById("monthLabel"),
-      monthView = document.getElementById("monthView"),
-      popupForm = document.getElementById("popupForm"),
-      planName = document.getElementById("planName"),
-      formDateLabel = document.getElementById("formDateLabel"),
-      hourSel = document.getElementById("hour"),
-      minuteSel = document.getElementById("minute"),
-      ampmSel = document.getElementById("ampm"),
-      notifToggle = document.getElementById("notifToggle"),
-      timeDisplay = document.getElementById("timeDisplay"),
-      sidebar = document.getElementById("sidebar"),
-      monthPills = document.getElementById("monthPills"),
-      notifSound = document.getElementById("notifSound");
-
-function toggleSidebar() {
-  sidebar.classList.toggle("active");
-  renderSidebar();
-}
-
-function updateTime() {
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-  const h = now.getHours().toString().padStart(2, '0');
-  const m = now.getMinutes().toString().padStart(2, '0');
-  const s = now.getSeconds().toString().padStart(2, '0');
-  timeDisplay.textContent = `it’s ${h}:${m}:${s}`;
-}
-setInterval(updateTime, 500);
-updateTime();
-
-function renderCalendar() {
-  if (today.getMonth() === 9 && today.getDate() === 7) {
-    plannerTitle.textContent = '❀♥Happy Birthday Eli!♥❀';
-  } else {
-    plannerTitle.textContent = '❀♥Eli\'s Planner♥❀';
-  }
-
-  monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-  monthView.innerHTML = "";
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-  for (let i = 0; i < firstDay; i++) {
-    monthView.appendChild(document.createElement("div"));
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = `${currentYear}-${currentMonth + 1}-${d}`;
-    const cell = document.createElement("div");
-    cell.className = "day";
-    const nowPH = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-
-    if (
-      d === nowPH.getDate() &&
-      currentMonth === nowPH.getMonth() &&
-      currentYear === nowPH.getFullYear()
-    ) {
-      cell.classList.add("today");
+    function toggleSidebar() {
+      sidebar.classList.toggle("active");
+      renderSidebar();
     }
 
-    cell.onclick = () => openForm(d);
-    cell.innerHTML = `<div><strong>${d}</strong></div>`;
+    function updateTime() {
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      timeDisplay.textContent = `it’s ${now.toTimeString().slice(0, 8)}`;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
 
-    const monthDay = `${(currentMonth + 1).toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
-    if (holidays[monthDay]) {
-      const h = document.createElement("div");
-      h.style.fontSize = "0.6rem";
-      h.textContent = holidays[monthDay];
-      cell.appendChild(h);
+    function openForm(day) {
+      selectedDay = day;
+      formDateLabel.textContent = `${monthNames[currentMonth]} ${day}, ${currentYear}`;
+      planName.value = "";
+      popupForm.style.display = "flex";
     }
 
-    (plans[key] || []).forEach((p, i) => {
-      const badge = document.createElement("div");
-      badge.className = "plan-badge";
-      badge.innerHTML = `${p.name} @${p.time}<button onclick="removePlan('${key}',${i}); event.stopPropagation()">✖</button>`;
-      cell.appendChild(badge);
-    });
-
-    monthView.appendChild(cell);
-  }
-}
-
-function openForm(day) {
-  selectedDay = day;
-  formDateLabel.textContent = `${monthNames[currentMonth]} ${day}, ${currentYear}`;
-  planName.value = "";
-  popupForm.style.display = "flex";
-}
-
-function savePlan() {
-  if (!planName.value.trim()) return;
-  const time = `${hourSel.value}:${minuteSel.value} ${ampmSel.value}`;
-  const key = `${currentYear}-${currentMonth + 1}-${selectedDay}`;
-  plans[key] = plans[key] || [];
-  plans[key].push({ name: planName.value.trim(), time });
-  localStorage.setItem("plans", JSON.stringify(plans));
-  renderCalendar();
-  renderSidebar();
-  popupForm.style.display = "none";
-}
-
-function removePlan(key, index) {
-  plans[key].splice(index, 1);
-  if (plans[key].length === 0) delete plans[key];
-  localStorage.setItem("plans", JSON.stringify(plans));
-  renderCalendar();
-  renderSidebar();
-}
-
-function changeMonth(offset) {
-  currentMonth += offset;
-  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-  renderCalendar();
-  renderSidebar();
-}
-function renderSidebar() {
-  monthPills.innerHTML = "";
-  const grouped = {};
-  for (const key in plans) {
-    const [y, m] = key.split("-").map(n => parseInt(n));
-    const label = `${monthNames[m - 1]} ${y}`;
-    grouped[label] = grouped[label] || [];
-    plans[key].forEach((p, i) => {
-      grouped[label].push({ key, idx: i, p });
-    });
-  }
-
-  Object.entries(grouped).forEach(([label, items]) => {
-    const pill = document.createElement("div");
-    pill.className = "month-pill";
-    const arrow = document.createElement("span");
-    arrow.textContent = "▼";
-    arrow.style.marginLeft = "auto";
-
-    pill.appendChild(document.createTextNode(`${label} (${items.length})`));
-    pill.appendChild(arrow);
-
-    const planList = document.createElement("div");
-    planList.className = "plan-list";
-    planList.style.display = "none";
-
-    items.forEach(({ key, idx, p }) => {
-      const div = document.createElement("div");
-      div.innerHTML = `${key.replace(/-/g, "/")} - ${p.name} @ ${p.time} <button onclick="removePlan('${key}',${idx}); event.stopPropagation()">✖</button>`;
-      planList.appendChild(div);
-    });
-
-    pill.onclick = () => {
-      const open = planList.style.display === "block";
-      planList.style.display = open ? "none" : "block";
-      arrow.textContent = open ? "▼" : "▲";
-    };
-
-    monthPills.appendChild(pill);
-    monthPills.appendChild(planList);
-  });
-}
-
-for (let h = 1; h <= 12; h++) {
-  const o = document.createElement("option");
-  o.value = h;
-  o.textContent = h;
-  hourSel.appendChild(o);
-}
-for (let m = 0; m < 60; m++) {
-  const o = document.createElement("option");
-  o.value = o.textContent = m.toString().padStart(2, "0");
-  minuteSel.appendChild(o);
-}
-
-setInterval(() => {
-  if (!notifToggle.checked) return;
-
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hr12 = ((hour + 11) % 12 + 1);
-  const timeStr = `${hr12}:${minute.toString().padStart(2, "0")} ${ampm}`;
-  const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-
-  (plans[todayKey] || []).forEach(p => {
-    if (p.time === timeStr && !p.notified) {
-      p.notified = true;
-      alert(`🔔 Reminder: ${p.name} at ${p.time}`);
-      notifSound.play();
+    function savePlan() {
+      if (!planName.value.trim()) return;
+      const time = `${hourSel.value}:${minuteSel.value} ${ampmSel.value}`;
+      const key = `${currentYear}-${currentMonth + 1}-${selectedDay}`;
+      plans[key] = plans[key] || [];
+      const emoji = emojiCycle[emojiCounter++ % emojiCycle.length];
+      plans[key].push({ name: planName.value.trim(), time, emoji });
+      localStorage.setItem("plans", JSON.stringify(plans));
+      popupForm.style.display = "none";
+      renderCalendar();
+      renderSidebar();
     }
-  });
 
-  localStorage.setItem("plans", JSON.stringify(plans));
-}, 30000);
+    function removePlan(key, index) {
+      plans[key].splice(index, 1);
+      if (plans[key].length === 0) delete plans[key];
+      localStorage.setItem("plans", JSON.stringify(plans));
+      renderCalendar();
+      renderSidebar();
+    }
 
-// Swipe support
-let startX = 0;
-document.querySelector('.planner-container').addEventListener("touchstart", e => {
-  startX = e.touches[0].clientX;
-});
-document.querySelector('.planner-container').addEventListener("touchend", e => {
-  const endX = e.changedTouches[0].clientX;
-  if (endX - startX > 50) changeMonth(-1);
-  else if (startX - endX > 50) changeMonth(1);
-});
+    function changeMonth(offset) {
+      currentMonth += offset;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendar();
+      renderSidebar();
+    }
 
-// Birthday emoji override
-if (today.getMonth() === 9 && today.getDate() === 7) {
-  document.querySelectorAll('.rain-emoji').forEach(el => {
-    el.textContent = ['🎉', '🎂', '🎁', '🎈'][Math.floor(Math.random() * 4)];
-  });
-}
+    function renderCalendar() {
+      plannerTitle.textContent = today.getMonth() === 9 && today.getDate() === 7 ? '❀♥Happy Birthday Eli!♥❀' : '❀♥Eli\'s Planner♥❀';
+      monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+      monthView.innerHTML = "";
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-renderCalendar();
-renderSidebar();
-</script>
+      for (let i = 0; i < firstDay; i++) {
+        monthView.appendChild(document.createElement("div"));
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${currentYear}-${currentMonth + 1}-${d}`;
+        const cell = document.createElement("div");
+        cell.className = "day";
+        cell.onclick = () => openForm(d);
+        const dateHeader = `<div><strong>${d}</strong></div>`;
+        const holiday = holidays[`${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`];
+        cell.innerHTML = dateHeader + (holiday ? `<div style="font-size:0.6rem">${holiday}</div>` : "");
+        if (today.getDate() === d && today.getMonth() === currentMonth && today.getFullYear() === currentYear) {
+          cell.classList.add("today");
+        }
+        (plans[key] || []).forEach(p => {
+          const badge = document.createElement("div");
+          badge.className = "plan-badge";
+          badge.textContent = p.emoji || "•";
+          cell.appendChild(badge);
+        });
+        monthView.appendChild(cell);
+      }
+    }
+
+    function renderSidebar() {
+      monthPills.innerHTML = "";
+      const grouped = {};
+      for (const key in plans) {
+        const [y, m] = key.split("-").map(Number);
+        const label = `${monthNames[m - 1]} ${y}`;
+        grouped[label] = grouped[label] || [];
+        plans[key].forEach((p, i) => grouped[label].push({ key, idx: i, p }));
+      }
+
+      for (const [label, items] of Object.entries(grouped)) {
+        const pill = document.createElement("div");
+        pill.className = "month-pill";
+        const arrow = document.createElement("span");
+        arrow.textContent = "▼";
+        arrow.style.marginLeft = "auto";
+        pill.append(label + ` (${items.length})`, arrow);
+
+        const planList = document.createElement("div");
+        planList.className = "plan-list";
+        planList.style.display = "none";
+
+        items.forEach(({ key, idx, p }) => {
+          const div = document.createElement("div");
+          div.innerHTML = `${p.emoji || "•"} ${key.replace(/-/g, "/")} - ${p.name} @ ${p.time} <button onclick="removePlan('${key}',${idx}); event.stopPropagation()">✖</button>`;
+          planList.appendChild(div);
+        });
+
+        pill.onclick = () => {
+          const show = planList.style.display === "none";
+          planList.style.display = show ? "block" : "none";
+          arrow.textContent = show ? "▲" : "▼";
+        };
+
+        monthPills.appendChild(pill);
+        monthPills.appendChild(planList);
+      }
+    }
+
+    for (let h = 1; h <= 12; h++) hourSel.innerHTML += `<option>${h}</option>`;
+    for (let m = 0; m < 60; m++) minuteSel.innerHTML += `<option>${String(m).padStart(2, '0')}</option>`;
+
+    setInterval(() => {
+      if (!notifToggle.checked) return;
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      const hour = now.getHours(), minute = now.getMinutes();
+      const ampm = hour >= 12 ? "PM" : "AM";
+      const hr12 = ((hour + 11) % 12 + 1);
+      const timeStr = `${hr12}:${String(minute).padStart(2, "0")} ${ampm}`;
+      const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      (plans[todayKey] || []).forEach(p => {
+        if (p.time === timeStr && !p.notified) {
+          p.notified = true;
+          alert(`🔔 Reminder: ${p.name} at ${p.time}`);
+          notifSound.play();
+        }
+      });
+      localStorage.setItem("plans", JSON.stringify(plans));
+    }, 30000);
+
+    document.querySelector('.planner-container').addEventListener("touchstart", e => {
+      startX = e.touches[0].clientX;
+    });
+    document.querySelector('.planner-container').addEventListener("touchend", e => {
+      const endX = e.changedTouches[0].clientX;
+      if (endX - startX > 50) changeMonth(-1);
+      else if (startX - endX > 50) changeMonth(1);
+    });
+
+    renderCalendar();
+    renderSidebar();
+  </script>
 </body>
 </html>
